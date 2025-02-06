@@ -4,8 +4,6 @@ const morgan = require("morgan");
 
 const Person = require("./models/person");
 
-let persons = [];
-
 app.use(express.static("dist"));
 
 const requestLogger = (request, response, next) => {
@@ -14,6 +12,16 @@ const requestLogger = (request, response, next) => {
   console.log("Body:  ", request.body);
   console.log("---");
   next();
+};
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  }
+
+  next(error);
 };
 
 const cors = require("cors");
@@ -74,11 +82,27 @@ app.post("/api/persons", (request, response) => {
   });
 });
 
-app.delete("/api/persons/:id", (request, response) => {
-  const id = request.params.id;
-  persons = persons.filter((person) => person.id !== id);
+app.put("/api/persons/:id", (request, response, next) => {
+  const body = request.body;
 
-  response.status(204).end();
+  const person = {
+    name: body.name,
+    number: body.number,
+  };
+
+  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      response.json(updatedPerson);
+    })
+    .catch((error) => next(error));
+});
+
+app.delete("/api/persons/:id", (request, response) => {
+  Person.findByIdAndDelete(request.params.id)
+    .then((result) => {
+      response.status(204).end();
+    })
+    .catch((error) => next(error));
 });
 
 app.get("/info", (request, response) => {
@@ -91,6 +115,7 @@ app.get("/info", (request, response) => {
 });
 
 app.use(unknownEndpoint);
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
