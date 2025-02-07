@@ -24,7 +24,7 @@ const personSchema = new mongoose.Schema({
       validator: function(v) {
         return 
       }
-    }
+    },
     required: true
   },
   number: {
